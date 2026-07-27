@@ -21,8 +21,8 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 
 ### A3 — LangGraph skeleton
 - [x] `GameBuilderState`, node stubs, compile *(state + NODE_ORDER — commit 1)*  
-- [ ] Stub happy path emits thought / action / observation  
-- [ ] Conditional edge placeholder: test fail → repair  
+- [x] Stub happy path emits thought / action / observation *(commit 2)*  
+- [x] Conditional edge placeholder: test fail → repair *(commit 2)*  
 
 **Accept:** `invoke` walks stub nodes offline; trace length matches node order.
 

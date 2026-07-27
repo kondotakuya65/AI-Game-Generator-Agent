@@ -20,9 +20,9 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 **Accept:** invalid spec rejected; mock returns fixture text.
 
 ### A3 — LangGraph skeleton
-- [ ] `GameBuilderState`, node stubs, compile  
-- [ ] Stub happy path emits thought / action / observation  
-- [ ] Conditional edge placeholder: test fail → repair  
+- [x] `GameBuilderState`, node stubs, compile *(state + NODE_ORDER — commit 1)*  
+- [x] Stub happy path emits thought / action / observation *(commit 2)*  
+- [x] Conditional edge placeholder: test fail → repair *(commit 2)*  
 
 **Accept:** `invoke` walks stub nodes offline; trace length matches node order.
 

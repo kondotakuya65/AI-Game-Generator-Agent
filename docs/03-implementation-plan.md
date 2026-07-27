@@ -15,7 +15,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ### A2 — Contracts + LLM adapter
 - [x] GameSpec + pipeline state Pydantic models *(commit 1)*  
 - [x] `ollama` / `openai` / `anthropic` / `mock` via `app.llm.provider` *(commit 2)*  
-- [ ] Unit tests (validation + mock LLM)  
+- [x] Unit tests (validation + mock LLM) *(commit 3)*  
 
 **Accept:** invalid spec rejected; mock returns fixture text.
 

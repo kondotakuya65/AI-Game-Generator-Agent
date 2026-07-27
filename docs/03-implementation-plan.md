@@ -13,7 +13,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 **Accept:** `GET /api/health` OK; UI loads and shows health.
 
 ### A2 — Contracts + LLM adapter
-- [ ] GameSpec + pipeline state Pydantic models  
+- [x] GameSpec + pipeline state Pydantic models *(commit 1)*  
 - [ ] `ollama` / `openai` / `anthropic` / `mock` via `app.llm.provider`  
 - [ ] Unit tests (validation + mock LLM)  
 

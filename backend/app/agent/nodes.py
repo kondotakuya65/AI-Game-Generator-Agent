@@ -268,18 +268,46 @@ def test_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def repair_node(state: GameBuilderState) -> dict[str, Any]:
+    from app.agent.repair import repair_game_artifact
+
     count = int(state.get("repair_count") or 0) + 1
+    budget = int(state.get("repair_budget") or 0)
+    result = repair_game_artifact(
+        state.get("run_id") or "local",
+        state.get("artifact_dir"),
+        state.get("test_report"),
+        repair_count=count,
+        prompt=state.get("prompt") or "",
+    )
     return {
         "status": "repairing",
         "repair_count": count,
-        "messages": [f"repair: stub attempt {count}"],
+        "test_passed": None,
+        "messages": [
+            f"repair: attempt {count}/{budget} via {result['strategy']} "
+            f"({', '.join(result['applied']) or 'no-op'})"
+        ],
         "trace": _trace(
             "repair",
-            f"Stub: patch artifact (attempt {count}).",
+            f"Patch game after failed acceptance (attempt {count}/{budget}).",
             kind="thought",
+            data={"failed_ids": result["failed_ids"], "budget": budget},
         )
-        + _trace("repair", "patch_game_files", kind="action")
-        + _trace("repair", "Stub patch applied.", kind="observation"),
+        + _trace(
+            "repair",
+            "patch_game_files",
+            kind="action",
+            data={
+                "strategy": result["strategy"],
+                "applied": result["applied"],
+                "log_path": result["log_path"],
+            },
+        )
+        + _trace(
+            "repair",
+            f"Applied {result['strategy']}: {', '.join(result['applied']) or 'none'}.",
+            kind="observation",
+        ),
     }
 
 

@@ -57,7 +57,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 
 ### D1 — Tester + repair
 - [x] Run acceptance checks on artifact *(commit 1)*  
-- [ ] Repair loop with budget `N` + stop report  
+- [x] Repair loop with budget `N` + stop report *(commit 2)*  
 
 **Accept:** failing fixture → repair → pass **or** clear failure report.
 

@@ -30,6 +30,8 @@ class Settings(BaseSettings):
 
     repair_budget: int = 3
     artifacts_dir: str = str(_repo_root() / "artifacts")
+    # auto | mock | template — auto uses mock when LLM_PROVIDER=mock
+    code_mode: str = "auto"
 
 
 @lru_cache

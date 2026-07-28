@@ -14,7 +14,9 @@ from app.agent.state import GameBuilderState
 def build_game_builder_graph() -> StateGraph:
     graph = StateGraph(GameBuilderState)
 
-    graph.add_node("clarify", nodes.clarify_node)
+    # Ask is checkpointed before the interrupt so resume never re-calls the LLM.
+    graph.add_node("clarify_ask", nodes.clarify_ask_node)
+    graph.add_node("clarify_gate", nodes.clarify_gate_node)
     graph.add_node("lock_spec", nodes.lock_spec_node)
     graph.add_node("design", nodes.design_node)
     graph.add_node("code", nodes.code_node)
@@ -22,8 +24,9 @@ def build_game_builder_graph() -> StateGraph:
     graph.add_node("repair", nodes.repair_node)
     graph.add_node("deploy", nodes.deploy_node)
 
-    graph.add_edge(START, "clarify")
-    graph.add_edge("clarify", "lock_spec")
+    graph.add_edge(START, "clarify_ask")
+    graph.add_edge("clarify_ask", "clarify_gate")
+    graph.add_edge("clarify_gate", "lock_spec")
     graph.add_edge("lock_spec", "design")
     graph.add_edge("design", "code")
     graph.add_edge("code", "test")

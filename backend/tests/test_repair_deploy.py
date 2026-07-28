@@ -116,6 +116,9 @@ def test_happy_path_deploys_play_and_zip(tmp_path):
     clear_settings_cache()
     spec = mock_orbit_run_spec()
     root, _, _ = code_from_gamespec(spec, "ship-1", settings=settings)
+    html = (root / "index.html").read_text(encoding="utf-8")
+    assert 'href="/play/ship-1/style.css"' in html
+    assert 'src="/play/ship-1/game.js"' in html
     report, _ = evaluate_game_artifact(
         "ship-1",
         root,
@@ -129,9 +132,11 @@ def test_happy_path_deploys_play_and_zip(tmp_path):
     assert Path(deployed["zip_path"]).is_file()
 
     client = TestClient(app)
-    page = client.get("/play/ship-1/")
-    assert page.status_code == 200
-    assert b"<canvas" in page.content
+    # Both slash variants must serve the game (Next may strip trailing slash).
+    for url in ("/play/ship-1", "/play/ship-1/"):
+        page = client.get(url)
+        assert page.status_code == 200
+        assert b"<canvas" in page.content
     asset = client.get("/play/ship-1/game.js")
     assert asset.status_code == 200
     z = client.get("/api/runs/ship-1/download")

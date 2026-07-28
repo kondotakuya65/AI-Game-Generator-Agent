@@ -189,9 +189,10 @@ def apply_targeted_patches(game_dir: Path, failed_ids: list[str]) -> list[str]:
     return applied
 
 
-def rewrite_mock_game(game_dir: Path, prompt: str = "") -> list[str]:
+def rewrite_mock_game(game_dir: Path, prompt: str = "", *, run_id: str | None = None) -> list[str]:
     """Nuclear repair: rewrite files from deterministic Orbit Run mock."""
-    files = render_genre_template(mock_orbit_run_spec(prompt or None))
+    rid = run_id or game_dir.parent.name
+    files = render_genre_template(mock_orbit_run_spec(prompt or None), run_id=rid)
     game_dir.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
         (game_dir / name).write_text(content, encoding="utf-8")
@@ -220,10 +221,10 @@ def repair_game_artifact(
         applied = apply_targeted_patches(game_dir, failed or ["boots"])
         strategy = "targeted"
         if not applied:
-            applied = rewrite_mock_game(game_dir, prompt)
+            applied = rewrite_mock_game(game_dir, prompt, run_id=run_id)
             strategy = "mock_rewrite"
     else:
-        applied = rewrite_mock_game(game_dir, prompt)
+        applied = rewrite_mock_game(game_dir, prompt, run_id=run_id)
         strategy = "mock_rewrite"
 
     log = {

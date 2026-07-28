@@ -20,14 +20,26 @@ class TemplateContext:
     extra: dict = field(default_factory=dict)
 
 
-def html_shell(ctx: TemplateContext, script_name: str = "game.js") -> str:
+def html_shell(
+    ctx: TemplateContext,
+    script_name: str = "game.js",
+    *,
+    asset_base: str = "",
+) -> str:
+    """
+    asset_base: optional absolute prefix (e.g. /play/{run_id}/) so CSS/JS
+    resolve even when the page URL has no trailing slash.
+    """
+    base = asset_base if asset_base.endswith("/") or not asset_base else f"{asset_base}/"
+    css_href = f"{base}style.css" if base else "style.css"
+    js_src = f"{base}{script_name}" if base else script_name
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{_escape(ctx.title)}</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="{css_href}" />
 </head>
 <body>
   <main class="wrap">
@@ -38,7 +50,7 @@ def html_shell(ctx: TemplateContext, script_name: str = "game.js") -> str:
     <canvas id="game" width="640" height="480" aria-label="{_escape(ctx.title)} canvas"></canvas>
     <p class="hint" id="hint">Twist: {_escape(ctx.twist)}</p>
   </main>
-  <script src="{script_name}"></script>
+  <script src="{js_src}"></script>
 </body>
 </html>
 """

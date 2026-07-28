@@ -65,7 +65,8 @@ Locked JSON drives design, code, and tests — not freeform chat memory.
 
 | Node | Input | Output |
 | --- | --- | --- |
-| `clarify` | prompt + answers | questions or ready-to-lock |
+| `clarify_ask` | prompt | uniqueness questions (checkpointed) |
+| `clarify_gate` | questions | human answers via interrupt |
 | `lock_spec` | answers + prompt | `gamespec.json` |
 | `design` | GameSpec | mechanics plan + acceptance tests |
 | `code` | GameSpec + design | `game/index.html`, `game.js`, … |

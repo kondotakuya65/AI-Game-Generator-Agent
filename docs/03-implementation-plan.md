@@ -70,14 +70,14 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ## Phase E — Studio + quality
 
 ### E1 — SSE + studio UI
-- [ ] Stream thought / action / observation  
-- [ ] Prompt, clarify panel, live trace, play embed  
+- [x] Stream thought / action / observation *(commit 1)*  
+- [x] Prompt, clarify panel, live trace, play embed *(commit 2)*  
 
 **Accept:** mock end-to-end demo visible in UI.
 
 ### E2 — CI + docs
-- [ ] GitHub Actions (backend pytest + frontend build)  
-- [ ] Design decisions + README demo walkthrough  
+- [x] GitHub Actions (backend pytest + frontend build) *(commit 3)*  
+- [x] Design decisions + README demo walkthrough *(commit 4)*  
 
 **Accept:** CI green on PR; docs match shipped behavior.
 

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-Game-Generator-Agent — Live screenshots</title>
+  <style>
+    :root {
+      --bg: #07141a;
+      --panel: #0d1f27;
+      --line: #1e3a44;
+      --text: #e6f2ef;
+      --muted: #8aa4a0;
+      --accent: #f0a202;
+      --accent-soft: #3a2e12;
+      --ok: #3ecf8e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      background:
+        radial-gradient(ellipse 70% 45% at 10% -5%, #0f3d3a 0%, transparent 55%),
+        radial-gradient(ellipse 50% 35% at 95% 0%, #1a2a14 0%, transparent 45%),
+        linear-gradient(180deg, #07141a 0%, #0a1c24 100%);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    header { margin-bottom: 1.25rem; }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0 0 0.35rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 3vw, 1.9rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .stage {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    .viewport {
+      position: relative;
+      background: #041016;
+      aspect-ratio: 16 / 10;
+      display: grid;
+      place-items: center;
+    }
+    .viewport img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .nav {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 0.6rem;
+      pointer-events: none;
+    }
+    .nav button {
+      pointer-events: auto;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(7, 20, 26, 0.82);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .nav button:hover { border-color: var(--accent); }
+    .meta {
+      display: grid;
+      gap: 0.65rem;
+      padding: 1rem 1.15rem 1.15rem;
+      border-top: 1px solid var(--line);
+    }
+    .caption {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 600;
+    }
+    .blurb {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .dots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+    .dots button {
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 999px;
+      border: 0;
+      padding: 0;
+      background: #334155;
+      cursor: pointer;
+    }
+    .dots button[aria-current="true"] {
+      width: 1.4rem;
+      background: var(--accent);
+    }
+    .counter {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .hint {
+      margin-top: 0.9rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .hint code {
+      color: var(--ok);
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.82rem;
+    }
+    a.back {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    a.back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Portfolio · clarify → autonomous build</p>
+      <h1>Live studio screenshots</h1>
+    </header>
+
+    <section class="stage" aria-live="polite">
+      <div class="viewport">
+        <img id="slide-img" src="Capture1.PNG" alt="Clarify with clickable answer options" />
+        <div class="nav">
+          <button type="button" id="prev" aria-label="Previous screenshot">‹</button>
+          <button type="button" id="next" aria-label="Next screenshot">›</button>
+        </div>
+      </div>
+      <div class="meta">
+        <p class="caption" id="slide-title">Clarify — pick uniqueness answers</p>
+        <p class="blurb" id="slide-blurb">Clickable option list + custom answer field while status is awaiting_clarify.</p>
+        <div class="dots" id="dots" role="tablist" aria-label="Slides"></div>
+      </div>
+    </section>
+
+    <p class="hint">
+      Keyboard: <code>←</code> <code>→</code> to slide ·
+      <a class="back" href="../README.md">Back to README</a>
+    </p>
+  </div>
+
+  <script>
+    const slides = [
+      {
+        src: "Capture1.PNG",
+        title: "1 · Clarify — uniqueness Q&A",
+        blurb: "LLM questions with clickable choices (and optional custom text). API health shows awaiting_clarify.",
+      },
+      {
+        src: "Capture2.PNG",
+        title: "2 · Confirm → live trace",
+        blurb: "Building… while Thought / Action / Observation streams clarify_ask → clarify_gate.",
+      },
+      {
+        src: "Capture3.PNG",
+        title: "3 · Locked GameSpec + play embed",
+        blurb: "Shooter locked (title / genre / twist) with in-studio Canvas play after autonomous design → code.",
+      },
+      {
+        src: "Capture4.PNG",
+        title: "4 · Completed run",
+        blurb: "Play URL + zip download; run status completed with full SSE trace.",
+      },
+      {
+        src: "Capture5.PNG",
+        title: "5 · Puzzle genre path",
+        blurb: "Same pipeline for a Tetris-style prompt — FuturisticTetris puzzle with matched play state.",
+      },
+    ];
+
+    let index = 0;
+    const img = document.getElementById("slide-img");
+    const title = document.getElementById("slide-title");
+    const blurb = document.getElementById("slide-blurb");
+    const dots = document.getElementById("dots");
+
+    function render() {
+      const slide = slides[index];
+      img.src = slide.src;
+      img.alt = slide.title;
+      title.textContent = slide.title;
+      blurb.textContent = slide.blurb;
+      dots.innerHTML = "";
+      slides.forEach((_, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-label", `Go to slide ${i + 1}`);
+        if (i === index) b.setAttribute("aria-current", "true");
+        b.addEventListener("click", () => {
+          index = i;
+          render();
+        });
+        dots.appendChild(b);
+      });
+      const counter = document.createElement("span");
+      counter.className = "counter";
+      counter.textContent = `${index + 1} / ${slides.length}`;
+      dots.appendChild(counter);
+    }
+
+    function step(delta) {
+      index = (index + delta + slides.length) % slides.length;
+      render();
+    }
+
+    document.getElementById("prev").addEventListener("click", () => step(-1));
+    document.getElementById("next").addEventListener("click", () => step(1));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") step(-1);
+      if (e.key === "ArrowRight") step(1);
+    });
+    render();
+  </script>
+</body>
+</html>

@@ -39,7 +39,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ## Phase C — Design → code
 
 ### C1 — Designer
-- [ ] Mechanics + asset plan from GameSpec  
+- [x] Mechanics + asset plan from GameSpec *(commit 1)*  
 - [ ] Executable acceptance checklist  
 
 **Accept:** locked shooter → ≥5 acceptance items covering boots / move / score / win-lose.

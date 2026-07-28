@@ -80,7 +80,7 @@ def _js(ctx: TemplateContext) -> str:
       setStatus("matched");
       if (tiles.every((t) => t.cleared)) {{
         won = true;
-        setStatus("win — " + WIN);
+        setStatus("win -- " + WIN);
       }}
     }} else {{
       selected = null;
@@ -88,7 +88,7 @@ def _js(ctx: TemplateContext) -> str:
     }}
     if (!won && moves <= 0) {{
       lost = true;
-      setStatus("lose — " + LOSE);
+      setStatus("lose -- " + LOSE);
     }}
     draw();
   }});

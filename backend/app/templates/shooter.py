@@ -100,7 +100,7 @@ def _js(ctx: TemplateContext) -> str:
 
       if (rectsOverlap(player, e)) {{
         alive = false;
-        setStatus("lose — " + LOSE);
+        setStatus("lose -- " + LOSE);
       }}
       for (let j = bullets.length - 1; j >= 0; j--) {{
         if (rectsOverlap(bullets[j], e)) {{
@@ -109,7 +109,7 @@ def _js(ctx: TemplateContext) -> str:
           bumpScore(100);
           if (score >= 500) {{
             won = true;
-            setStatus("win — " + WIN);
+            setStatus("win -- " + WIN);
           }} else if (score % 200 === 0) {{
             wave += 1;
           }}

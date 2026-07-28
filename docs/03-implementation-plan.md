@@ -48,7 +48,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ### C2 — Coder
 - [x] Genre templates (shooter / runner / puzzle) *(commit 1)*  
 - [x] Write `index.html` + `game.js` (+ css) *(commit 2)*  
-- [ ] Mock coder path for deterministic offline game  
+- [x] Mock coder path for deterministic offline game *(commit 3)*  
 
 **Accept:** required files present; canvas shell boots (mock path).
 

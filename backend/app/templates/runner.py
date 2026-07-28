@@ -58,12 +58,12 @@ def _js(ctx: TemplateContext) -> str:
       if (h.y > canvas.height) {{
         hazards.splice(i, 1);
         bump(10);
-        if (score >= 400) {{ won = true; setStatus("win — " + WIN); }}
+        if (score >= 400) {{ won = true; setStatus("win -- " + WIN); }}
         continue;
       }}
       if (overlap(player, h)) {{
         alive = false;
-        setStatus("lose — " + LOSE);
+        setStatus("lose -- " + LOSE);
       }}
     }}
     if (score > 0 && score % 100 === 0) speed = 4 + score / 100;

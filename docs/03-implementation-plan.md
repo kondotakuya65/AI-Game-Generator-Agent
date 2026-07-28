@@ -76,7 +76,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 **Accept:** mock end-to-end demo visible in UI.
 
 ### E2 — CI + docs
-- [ ] GitHub Actions (backend pytest + frontend build)  
+- [x] GitHub Actions (backend pytest + frontend build) *(commit 3)*  
 - [ ] Design decisions + README demo walkthrough  
 
 **Accept:** CI green on PR; docs match shipped behavior.

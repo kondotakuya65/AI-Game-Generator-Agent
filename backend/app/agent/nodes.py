@@ -1,9 +1,10 @@
-"""Game builder graph nodes — stubs for skeleton walk (real logic in later PRs)."""
+"""Game builder graph nodes — clarify is live; later nodes still stubbed."""
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
+from app.agent.clarify import ask_clarify_questions
 from app.agent.state import GameBuilderState, TraceEvent
 
 
@@ -21,83 +22,114 @@ def _trace(
 
 
 def clarify_node(state: GameBuilderState) -> dict[str, Any]:
+    from langgraph.types import interrupt
+
+    from app.agent.resume import parse_clarify_resume
+
     prompt = state.get("prompt") or ""
-    questions = [
-        {
-            "id": "twist",
-            "text": "What unique twist should set this game apart?",
-            "options": ["near-miss shields", "gravity wells", "sideways only"],
-        }
-    ]
-    return {
-        "status": "clarifying",
-        "clarify_round": int(state.get("clarify_round") or 0) + 1,
-        "questions": questions,
-        "messages": [f"clarify: asked {len(questions)} question(s) for {prompt[:48]!r}"],
-        "trace": _trace(
+    existing = dict(state.get("answers") or {})
+    questions, source = ask_clarify_questions(prompt)
+    payload = [q.model_dump() for q in questions]
+
+    base_trace = (
+        _trace(
             "clarify",
-            "Stub: ask uniqueness questions before locking GameSpec.",
+            "Ask 3–5 uniqueness questions before locking GameSpec.",
             kind="thought",
-            data={"question_count": len(questions)},
+            data={"question_count": len(payload), "source": source},
         )
         + _trace(
             "clarify",
             "emit_clarify_questions",
             kind="action",
-            data={"questions": questions},
+            data={"questions": payload, "source": source},
         )
         + _trace(
             "clarify",
-            "Stub questions ready (answers may already be pre-filled).",
+            f"{len(payload)} questions ready ({source}).",
             kind="observation",
+            data={"ids": [q["id"] for q in payload]},
+        )
+    )
+
+    if existing:
+        return {
+            "status": "clarifying",
+            "clarify_round": int(state.get("clarify_round") or 0) + 1,
+            "questions": payload,
+            "answers": existing,
+            "messages": [
+                f"clarify: asked {len(payload)} via {source}; answers pre-filled (no pause)"
+            ],
+            "trace": base_trace
+            + _trace(
+                "clarify",
+                "Answers already present — skip human pause.",
+                kind="observation",
+                data={"answer_keys": list(existing.keys())},
+            ),
+        }
+
+    resume_raw = interrupt(
+        {
+            "type": "clarify",
+            "prompt": "Answer uniqueness questions, then confirm to lock GameSpec.",
+            "actions": ["confirm"],
+            "questions": payload,
+            "game_prompt": prompt,
+        }
+    )
+    resume = parse_clarify_resume(resume_raw)
+    answers = resume.answers
+    return {
+        "status": "clarifying",
+        "clarify_round": int(state.get("clarify_round") or 0) + 1,
+        "questions": payload,
+        "answers": answers,
+        "messages": [
+            f"clarify: asked {len(payload)} via {source}; locked answers for {len(answers)} keys"
+        ],
+        "trace": base_trace
+        + _trace(
+            "clarify",
+            f"Human confirmed {len(answers)} answer(s).",
+            kind="observation",
+            data={"answer_keys": list(answers.keys())},
         ),
     }
 
 
 def lock_spec_node(state: GameBuilderState) -> dict[str, Any]:
+    from app.agent.lock_spec import lock_gamespec
+
     prompt = state.get("prompt") or "game"
-    answers = state.get("answers") or {}
-    twist = answers.get("twist") or "shields recharge on near-miss"
-    gamespec = {
-        "genre": "shooter",
-        "title": "Orbit Run",
-        "twist": twist,
-        "prompt": prompt,
-        "controls": {"move": "arrows", "action": "space", "notes": ""},
-        "entities": [{"id": "player", "role": "player", "behavior": "ship", "count": 1}],
-        "win_lose": {"win": "clear 5 waves", "lose": "hull reaches 0"},
-        "scoring": {"events": ["enemy destroyed +100"], "win_score": None},
-        "visual": {
-            "palette": ["#07141a", "#f0a202", "#3ecf8e"],
-            "art_vibe": "minimal geometric",
-            "notes": "",
-        },
-        "acceptance": [
-            "game boots",
-            "player can move",
-            "score updates",
-        ],
-    }
+    run_id = state.get("run_id") or "local"
+    answers = dict(state.get("answers") or {})
+    spec, path, source = lock_gamespec(prompt, run_id, answers)
+    gamespec = spec.model_dump(mode="json")
     return {
         "status": "spec_locked",
         "gamespec": gamespec,
         "spec_locked": True,
-        "messages": ["lock_spec: GameSpec locked (stub)"],
+        "artifact_dir": str(path.parent),
+        "messages": [f"lock_spec: wrote {path.name} via {source}"],
         "trace": _trace(
             "lock_spec",
-            "Stub: lock GameSpec from prompt + answers.",
+            "Lock GameSpec from prompt + clarifying answers.",
             kind="thought",
+            data={"source": source},
         )
         + _trace(
             "lock_spec",
             "write_gamespec",
             kind="action",
-            data={"title": gamespec["title"]},
+            data={"path": str(path), "title": gamespec["title"]},
         )
         + _trace(
             "lock_spec",
-            f"Locked {gamespec['title']!r} ({gamespec['genre']}).",
+            f"Locked {gamespec['title']!r} ({gamespec['genre']}) → {path}.",
             kind="observation",
+            data={"acceptance": gamespec.get("acceptance", [])},
         ),
     }
 

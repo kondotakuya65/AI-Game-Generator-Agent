@@ -21,7 +21,10 @@ class MockLLMClient:
         sys_l = system.lower()
         lower = user.lower()
 
-        if "clarif" in sys_l or "uniqueness questions" in sys_l:
+        # Clarify before GameSpec — clarify prompts mention GameSpec as "do not lock yet".
+        if "uniqueness questions" in sys_l or (
+            "clarif" in sys_l and "question" in sys_l
+        ):
             return json.dumps(
                 {
                     "questions": [
@@ -53,7 +56,7 @@ class MockLLMClient:
                 }
             )
 
-        if "gamespec" in sys_l or "lock" in sys_l and "spec" in sys_l:
+        if "gamespec" in sys_l or ("lock" in sys_l and "spec" in sys_l):
             return json.dumps(
                 {
                     "genre": "shooter",

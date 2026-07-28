@@ -30,7 +30,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 
 ### B1 — Clarifier
 - [x] 3–5 uniqueness questions from prompt *(commit 1)*  
-- [ ] Lock `artifacts/{run_id}/gamespec.json`  
+- [x] Lock `artifacts/{run_id}/gamespec.json` *(commit 2)*  
 - [ ] API + UI turn for answers / confirm  
 
 **Accept:** golden “space shooter” + fixture answers → valid locked GameSpec.

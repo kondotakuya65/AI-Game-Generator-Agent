@@ -139,7 +139,7 @@ def write_test_report(
     return path
 
 
-def test_game_artifact(
+def evaluate_game_artifact(
     run_id: str,
     artifact_dir: str | Path | None,
     acceptance: list[Any] | None = None,

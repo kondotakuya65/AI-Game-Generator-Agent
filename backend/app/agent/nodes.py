@@ -229,7 +229,7 @@ def code_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def test_node(state: GameBuilderState) -> dict[str, Any]:
-    from app.agent.test_game import test_game_artifact
+    from app.agent.test_game import evaluate_game_artifact
 
     run_id = state.get("run_id") or "local"
     artifact_dir = state.get("artifact_dir")
@@ -239,7 +239,7 @@ def test_node(state: GameBuilderState) -> dict[str, Any]:
         if design_items and not acceptance:
             acceptance = list(design_items)
 
-    report, report_path = test_game_artifact(run_id, artifact_dir, acceptance)
+    report, report_path = evaluate_game_artifact(run_id, artifact_dir, acceptance)
     payload = report.model_dump(mode="json")
     return {
         "status": "testing",

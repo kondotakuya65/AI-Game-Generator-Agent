@@ -9,6 +9,7 @@ import {
   streamCreateRun,
   type ClarifyQuestion,
   type Health,
+  type RunInterrupt,
   type RunSnapshot,
   type TraceEvent,
 } from "@/lib/api";
@@ -51,7 +52,8 @@ export function StudioShell() {
     setTraces([]);
     setLiveActivity("Starting clarify…");
     try {
-      let snap: RunSnapshot | null = null;
+      let lastRunId = "";
+      let lastInterrupt: RunInterrupt | null = null;
       for await (const ev of streamCreateRun(prompt.trim())) {
         if (ev.type === "status") {
           setLiveActivity(`Run ${ev.run_id?.slice(0, 8)}…`);
@@ -70,13 +72,14 @@ export function StudioShell() {
             },
           ]);
         } else if (ev.type === "interrupt") {
-          snap = {
-            run_id: ev.run_id || "",
+          lastRunId = ev.run_id || "";
+          lastInterrupt = ev.interrupt ?? null;
+          setRun({
+            run_id: lastRunId,
             prompt: prompt.trim(),
             status: "awaiting_clarify",
-            interrupt: ev.interrupt,
-          };
-          setRun(snap);
+            interrupt: lastInterrupt,
+          });
           const qs = ev.interrupt?.questions || [];
           const defaults: Record<string, string> = {};
           for (const q of qs) {
@@ -85,15 +88,16 @@ export function StudioShell() {
           setAnswers(defaults);
           setLiveActivity("Awaiting uniqueness answers");
         } else if (ev.type === "done") {
-          snap = {
-            run_id: ev.run_id || snap?.run_id || "",
+          lastRunId = ev.run_id || lastRunId;
+          lastInterrupt = ev.interrupt ?? lastInterrupt;
+          setRun({
+            run_id: lastRunId,
             prompt: ev.prompt || prompt.trim(),
             status: ev.status || "awaiting_clarify",
             summary: ev.summary,
-            interrupt: ev.interrupt ?? snap?.interrupt,
+            interrupt: lastInterrupt,
             state: ev.state,
-          };
-          setRun(snap);
+          });
           if (ev.state?.trace?.length) {
             setTraces(ev.state.trace);
           }

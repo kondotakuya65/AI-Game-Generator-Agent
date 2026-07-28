@@ -6,14 +6,26 @@ from typing import Any
 
 from app.agent.graph import compile_game_builder_graph
 from app.agent.nodes import route_after_test
+from app.agent.resume import resume_with_answers
 from app.agent.state import NODE_ORDER, GameBuilderState, initial_state
+
+FIXTURE_ANSWERS = {
+    "twist": "near-miss recharges shields",
+    "difficulty": "standard",
+    "win": "clear 5 waves",
+    "art": "minimal geometric",
+}
 
 
 def test_stub_happy_path_invoke():
     graph = compile_game_builder_graph()
     config = {"configurable": {"thread_id": "stub-happy-1"}}
     result = graph.invoke(
-        initial_state("Make a new game like a space shooter", run_id="stub-1"),
+        initial_state(
+            "Make a new game like a space shooter",
+            run_id="stub-1",
+            answers=FIXTURE_ANSWERS,
+        ),
         config=config,
     )
 
@@ -22,6 +34,7 @@ def test_stub_happy_path_invoke():
     assert result["test_passed"] is True
     assert result["play_url"] == "/play/stub-1"
     assert result["gamespec"]["genre"] == "shooter"
+    assert "near-miss" in result["gamespec"]["twist"]
     assert result.get("error") is None
 
     thought_nodes = [t["node"] for t in result["trace"] if t.get("kind") == "thought"]
@@ -29,9 +42,27 @@ def test_stub_happy_path_invoke():
 
     kinds = {t["kind"] for t in result["trace"]}
     assert {"thought", "action", "observation"}.issubset(kinds)
-
-    # Happy path never visits repair
     assert "repair" not in thought_nodes
+
+
+def test_clarify_interrupt_then_confirm_locks_spec():
+    graph = compile_game_builder_graph()
+    config = {"configurable": {"thread_id": "clarify-hitl-1"}}
+    paused = graph.invoke(
+        initial_state("Make a space shooter", run_id="clarify-1"),
+        config=config,
+    )
+    assert paused.get("__interrupt__")
+    interrupt_val = paused["__interrupt__"][0].value
+    assert interrupt_val["type"] == "clarify"
+    assert len(interrupt_val["questions"]) >= 3
+
+    result = graph.invoke(resume_with_answers(FIXTURE_ANSWERS), config=config)
+    assert not result.get("__interrupt__")
+    assert result["spec_locked"] is True
+    assert result["gamespec"]["title"]
+    assert result["status"] == "completed"
+    assert result["play_url"] == "/play/clarify-1"
 
 
 def test_route_after_test_branches():
@@ -106,7 +137,12 @@ def test_repair_loop_then_deploy(monkeypatch):
     monkeypatch.setattr(nodes, "test_node", flaky_test)
     graph = compile_game_builder_graph()
     result = graph.invoke(
-        initial_state("space shooter", run_id="repair-1", repair_budget=3),
+        initial_state(
+            "space shooter",
+            run_id="repair-1",
+            repair_budget=3,
+            answers=FIXTURE_ANSWERS,
+        ),
         config={"configurable": {"thread_id": "stub-repair-1"}},
     )
 

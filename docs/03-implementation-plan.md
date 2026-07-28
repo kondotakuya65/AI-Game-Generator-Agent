@@ -56,13 +56,14 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ## Phase D — Test → repair → deploy
 
 ### D1 — Tester + repair
-- [ ] Run acceptance checks on artifact  
-- [ ] Repair loop with budget `N` + stop report  
+- [x] Run acceptance checks on artifact *(commit 1)*  
+- [x] Repair loop with budget `N` + stop report *(commit 2)*  
+- [x] Failing fixture → repair / budget tests *(commit 4)*  
 
 **Accept:** failing fixture → repair → pass **or** clear failure report.
 
 ### D2 — Deployer
-- [ ] Serve `/play/{id}` + zip download  
+- [x] Serve `/play/{id}` + zip download *(commit 3)*  
 
 **Accept:** locked run → playable URL without further human input.
 

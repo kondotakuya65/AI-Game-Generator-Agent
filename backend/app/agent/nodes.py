@@ -229,50 +229,129 @@ def code_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def test_node(state: GameBuilderState) -> dict[str, Any]:
-    """Stub always passes so the happy path reaches deploy without repair."""
-    report = {
-        "passed": True,
-        "items": [{"id": "boots", "description": "game boots", "passed": True}],
-        "summary": "Stub tests passed.",
-    }
+    from app.agent.test_game import evaluate_game_artifact
+
+    run_id = state.get("run_id") or "local"
+    artifact_dir = state.get("artifact_dir")
+    acceptance = list(state.get("acceptance_tests") or [])
+    if state.get("design") and isinstance(state["design"], dict):
+        design_items = state["design"].get("acceptance_tests") or []
+        if design_items and not acceptance:
+            acceptance = list(design_items)
+
+    report, report_path = evaluate_game_artifact(run_id, artifact_dir, acceptance)
+    payload = report.model_dump(mode="json")
     return {
         "status": "testing",
-        "test_report": report,
-        "test_passed": True,
-        "messages": ["test: stub pass"],
-        "trace": _trace("test", "Stub: run acceptance checks.", kind="thought")
-        + _trace("test", "run_acceptance", kind="action")
-        + _trace("test", "All stub checks passed.", kind="observation", data=report),
+        "test_report": payload,
+        "test_passed": report.passed,
+        "messages": [f"test: {report.summary}"],
+        "trace": _trace(
+            "test",
+            "Run static acceptance checks on generated game files.",
+            kind="thought",
+            data={"items": len(report.items)},
+        )
+        + _trace(
+            "test",
+            "run_acceptance",
+            kind="action",
+            data={"report_path": str(report_path)},
+        )
+        + _trace(
+            "test",
+            report.summary,
+            kind="observation",
+            data={"passed": report.passed, "report_path": str(report_path)},
+        ),
     }
 
 
 def repair_node(state: GameBuilderState) -> dict[str, Any]:
+    from app.agent.repair import repair_game_artifact
+
     count = int(state.get("repair_count") or 0) + 1
+    budget = int(state.get("repair_budget") or 0)
+    result = repair_game_artifact(
+        state.get("run_id") or "local",
+        state.get("artifact_dir"),
+        state.get("test_report"),
+        repair_count=count,
+        prompt=state.get("prompt") or "",
+    )
     return {
         "status": "repairing",
         "repair_count": count,
-        "messages": [f"repair: stub attempt {count}"],
+        "test_passed": None,
+        "messages": [
+            f"repair: attempt {count}/{budget} via {result['strategy']} "
+            f"({', '.join(result['applied']) or 'no-op'})"
+        ],
         "trace": _trace(
             "repair",
-            f"Stub: patch artifact (attempt {count}).",
+            f"Patch game after failed acceptance (attempt {count}/{budget}).",
             kind="thought",
+            data={"failed_ids": result["failed_ids"], "budget": budget},
         )
-        + _trace("repair", "patch_game_files", kind="action")
-        + _trace("repair", "Stub patch applied.", kind="observation"),
+        + _trace(
+            "repair",
+            "patch_game_files",
+            kind="action",
+            data={
+                "strategy": result["strategy"],
+                "applied": result["applied"],
+                "log_path": result["log_path"],
+            },
+        )
+        + _trace(
+            "repair",
+            f"Applied {result['strategy']}: {', '.join(result['applied']) or 'none'}.",
+            kind="observation",
+        ),
     }
 
 
 def deploy_node(state: GameBuilderState) -> dict[str, Any]:
+    from app.agent.deploy import deploy_game
+
     run_id = state.get("run_id") or "local"
-    play_url = f"/play/{run_id}"
+    try:
+        result = deploy_game(run_id, state.get("artifact_dir"))
+    except FileNotFoundError as exc:
+        return {
+            "status": "failed",
+            "error": str(exc),
+            "messages": [f"deploy: failed — {exc}"],
+            "trace": _trace(
+                "deploy",
+                f"Deploy failed: {exc}",
+                kind="observation",
+            ),
+        }
+
+    play_url = result["play_url"]
     return {
         "status": "completed",
         "play_url": play_url,
-        "summary": f"Stub deploy ready at {play_url}",
+        "summary": f"Playable at {play_url} (zip: {result['download_url']})",
         "messages": [f"deploy: {play_url}"],
-        "trace": _trace("deploy", "Stub: serve static play URL.", kind="thought")
-        + _trace("deploy", "mount_play_url", kind="action", data={"play_url": play_url})
-        + _trace("deploy", f"Playable at {play_url}.", kind="observation"),
+        "trace": _trace(
+            "deploy",
+            "Serve static play URL and zip download.",
+            kind="thought",
+        )
+        + _trace(
+            "deploy",
+            "mount_play_url",
+            kind="action",
+            data=result,
+        )
+        + _trace(
+            "deploy",
+            f"Playable at {play_url}; download {result['download_url']}.",
+            kind="observation",
+            data={"zip_path": result["zip_path"]},
+        ),
     }
 
 

@@ -46,9 +46,10 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 **Accept:** locked shooter → ≥5 acceptance items covering boots / move / score / win-lose.
 
 ### C2 — Coder
-- [ ] Genre templates (shooter / runner / puzzle)  
-- [ ] Write `index.html` + `game.js` (+ css)  
-- [ ] Mock coder path for deterministic offline game  
+- [x] Genre templates (shooter / runner / puzzle) *(commit 1)*  
+- [x] Write `index.html` + `game.js` (+ css) *(commit 2)*  
+- [x] Mock coder path for deterministic offline game *(commit 3)*  
+- [x] Coder file / HTML shell tests *(commit 4)*  
 
 **Accept:** required files present; canvas shell boots (mock path).
 

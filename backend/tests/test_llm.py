@@ -125,6 +125,14 @@ def test_ollama_client_posts_chat(monkeypatch):
     assert out == "ollama-ok"
     assert calls[0][0].endswith("/api/chat")
     assert calls[0][1]["model"] == "phi3:mini"
+    assert "format" not in calls[0][1]
+
+    out_json = OllamaClient("http://localhost:11434", "phi3:mini", timeout=5).complete(
+        "sys", "user", json_mode=True
+    )
+    assert out_json == "ollama-ok"
+    assert calls[1][1].get("format") == "json"
+    assert calls[1][1]["options"]["num_predict"] == 1536
 
 
 def test_openai_client_posts_completions(monkeypatch):

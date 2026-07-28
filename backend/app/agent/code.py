@@ -74,7 +74,7 @@ def code_from_gamespec(
         spec = locked
         source = "template"
 
-    files = render_genre_template(spec)
+    files = render_genre_template(spec, run_id=run_id)
     missing = [name for name in REQUIRED_FILES if name not in files]
     if missing:
         raise ValueError(f"template missing files: {missing}")

@@ -6,7 +6,7 @@ from typing import Callable
 
 from app.models import GameSpec, Genre
 from app.templates import puzzle, runner, shooter
-from app.templates.base import TemplateContext
+from app.templates.base import TemplateContext, html_shell
 
 RenderFn = Callable[[TemplateContext], dict[str, str]]
 
@@ -38,7 +38,16 @@ def context_from_gamespec(spec: GameSpec) -> TemplateContext:
     )
 
 
-def render_genre_template(spec: GameSpec) -> dict[str, str]:
+def render_genre_template(
+    spec: GameSpec,
+    *,
+    run_id: str | None = None,
+) -> dict[str, str]:
     """Return mapping of filename → file contents for the genre template."""
+    ctx = context_from_gamespec(spec)
     renderer = GENRE_RENDERERS.get(spec.genre, shooter.render)
-    return renderer(context_from_gamespec(spec))
+    files = renderer(ctx)
+    if run_id:
+        # Absolute asset URLs so /play/{id} (no trailing slash) still loads CSS/JS.
+        files["index.html"] = html_shell(ctx, asset_base=f"/play/{run_id}/")
+    return files

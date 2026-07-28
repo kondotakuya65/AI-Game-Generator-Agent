@@ -1,4 +1,4 @@
-"""Game builder graph nodes — clarify is live; later nodes still stubbed."""
+"""Game builder graph nodes — clarify ask/gate, then autonomous pipeline."""
 
 from __future__ import annotations
 
@@ -21,18 +21,29 @@ def _trace(
     return [event]
 
 
-def clarify_node(state: GameBuilderState) -> dict[str, Any]:
-    from langgraph.types import interrupt
-
-    from app.agent.resume import parse_clarify_resume
-
+def clarify_ask_node(state: GameBuilderState) -> dict[str, Any]:
+    """Generate uniqueness questions once (checkpointed before the human pause)."""
     prompt = state.get("prompt") or ""
-    existing = dict(state.get("answers") or {})
+    cached = list(state.get("questions") or [])
+    if cached:
+        return {
+            "status": "clarifying",
+            "messages": [f"clarify_ask: reuse {len(cached)} cached questions"],
+            "trace": _trace(
+                "clarify",
+                f"Reuse {len(cached)} cached questions (skip LLM).",
+                kind="observation",
+                data={"ids": [q.get("id") for q in cached]},
+            ),
+        }
+
     questions, source = ask_clarify_questions(prompt)
     payload = [q.model_dump() for q in questions]
-
-    base_trace = (
-        _trace(
+    return {
+        "status": "clarifying",
+        "questions": payload,
+        "messages": [f"clarify_ask: {len(payload)} questions via {source}"],
+        "trace": _trace(
             "clarify",
             "Ask 3–5 uniqueness questions before locking GameSpec.",
             kind="thought",
@@ -48,21 +59,30 @@ def clarify_node(state: GameBuilderState) -> dict[str, Any]:
             "clarify",
             f"{len(payload)} questions ready ({source}).",
             kind="observation",
-            data={"ids": [q["id"] for q in payload]},
-        )
-    )
+            data={"ids": [q["id"] for q in payload], "source": source},
+        ),
+    }
+
+
+def clarify_gate_node(state: GameBuilderState) -> dict[str, Any]:
+    """Pause for human answers without re-calling the LLM on resume."""
+    from langgraph.types import interrupt
+
+    from app.agent.resume import parse_clarify_resume
+
+    prompt = state.get("prompt") or ""
+    payload = list(state.get("questions") or [])
+    existing = dict(state.get("answers") or {})
 
     if existing:
         return {
             "status": "clarifying",
             "clarify_round": int(state.get("clarify_round") or 0) + 1,
-            "questions": payload,
             "answers": existing,
             "messages": [
-                f"clarify: asked {len(payload)} via {source}; answers pre-filled (no pause)"
+                f"clarify_gate: answers pre-filled ({len(existing)} keys); skip pause"
             ],
-            "trace": base_trace
-            + _trace(
+            "trace": _trace(
                 "clarify",
                 "Answers already present — skip human pause.",
                 kind="observation",
@@ -84,19 +104,19 @@ def clarify_node(state: GameBuilderState) -> dict[str, Any]:
     return {
         "status": "clarifying",
         "clarify_round": int(state.get("clarify_round") or 0) + 1,
-        "questions": payload,
         "answers": answers,
-        "messages": [
-            f"clarify: asked {len(payload)} via {source}; locked answers for {len(answers)} keys"
-        ],
-        "trace": base_trace
-        + _trace(
+        "messages": [f"clarify_gate: human confirmed {len(answers)} answer(s)"],
+        "trace": _trace(
             "clarify",
             f"Human confirmed {len(answers)} answer(s).",
             kind="observation",
             data={"answer_keys": list(answers.keys())},
         ),
     }
+
+
+# Back-compat alias for imports / docs that still say clarify_node
+clarify_node = clarify_ask_node
 
 
 def lock_spec_node(state: GameBuilderState) -> dict[str, Any]:
@@ -127,9 +147,9 @@ def lock_spec_node(state: GameBuilderState) -> dict[str, Any]:
         )
         + _trace(
             "lock_spec",
-            f"Locked {gamespec['title']!r} ({gamespec['genre']}) → {path}.",
+            f"Locked {gamespec['title']!r} ({gamespec['genre']}) via {source} → {path}.",
             kind="observation",
-            data={"acceptance": gamespec.get("acceptance", [])},
+            data={"acceptance": gamespec.get("acceptance", []), "source": source},
         ),
     }
 

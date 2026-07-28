@@ -71,7 +71,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 
 ### E1 — SSE + studio UI
 - [x] Stream thought / action / observation *(commit 1)*  
-- [ ] Prompt, clarify panel, live trace, play embed  
+- [x] Prompt, clarify panel, live trace, play embed *(commit 2)*  
 
 **Accept:** mock end-to-end demo visible in UI.
 

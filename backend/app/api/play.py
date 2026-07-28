@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 
 from app.agent.deploy import create_game_zip, game_dir_for, zip_path_for
 from app.config import get_settings
@@ -31,12 +31,9 @@ def _safe_game_file(run_id: str, filename: str) -> Path:
 
 
 @play_router.get("/play/{run_id}")
-def play_redirect(run_id: str) -> RedirectResponse:
-    return RedirectResponse(url=f"/play/{run_id}/", status_code=307)
-
-
 @play_router.get("/play/{run_id}/")
 def play_index(run_id: str) -> FileResponse:
+    """Serve index at both slash variants (Next may strip trailing slashes)."""
     path = _safe_game_file(run_id, "index.html")
     return FileResponse(path, media_type="text/html")
 

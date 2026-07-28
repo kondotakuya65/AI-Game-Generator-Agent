@@ -51,12 +51,17 @@ def test_create_stream_emits_clarify_interrupt():
     events = _parse_sse(res.text)
     types = [e.get("type") for e in events]
     assert "status" in types
-    # Clarify interrupts before the node returns, so traces land after confirm.
+    # clarify_ask completes before interrupt, so ask traces should land on create.
+    assert "trace" in types
     assert "interrupt" in types
     assert "done" in types
     interrupt = next(e for e in events if e["type"] == "interrupt")
     assert interrupt["interrupt"]["type"] == "clarify"
     assert len(interrupt["interrupt"]["questions"]) >= 3
+    ask_traces = [
+        e for e in events if e.get("type") == "trace" and e.get("node") == "clarify"
+    ]
+    assert any("questions ready" in (e.get("message") or "") for e in ask_traces)
     done = next(e for e in events if e["type"] == "done")
     assert done["status"] == "awaiting_clarify"
 

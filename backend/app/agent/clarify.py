@@ -2,20 +2,74 @@
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
+from app.agent.json_util import extract_json_object
 from app.llm.provider import LLMClient, get_llm_client
 from app.models import ClarifyQuestion
 
 CLARIFY_SYSTEM = """You help design unique HTML5 Canvas games.
 Given a player prompt, ask 3 to 5 short uniqueness questions.
-Return ONLY valid JSON with this shape:
+Return ONLY valid JSON (no markdown) with this exact shape:
 {"questions":[{"id":"snake_case","text":"...","options":["a","b","c"]}]}
-Cover twist, difficulty or pacing, win condition, and art vibe when relevant.
-Do not lock a GameSpec yet — questions only.
+Rules:
+- ids must be snake_case like twist, difficulty, win, art when possible
+- EVERY question MUST include 2-4 short, concrete options (never empty)
+- cover twist, difficulty/pacing, win condition, and art vibe
+- do not lock a GameSpec — questions only
 """
+
+# Used when the model omits choices so the Studio always has clickable answers.
+_DEFAULT_OPTIONS_BY_HINT: dict[str, list[str]] = {
+    "twist": [
+        "near-miss recharges shields",
+        "gravity wells pull shots",
+        "only sideways movement",
+    ],
+    "difficulty": ["casual", "standard", "hard"],
+    "win": ["survive 60s", "clear 5 waves", "defeat boss"],
+    "art": ["neon vectors", "minimal geometric", "retro pixel"],
+    "generic": ["option A", "option B", "option C"],
+}
+
+
+def _default_options_for(qid: str, text: str) -> list[str]:
+    blob = f"{qid} {text}".lower()
+    if any(k in blob for k in ("twist", "unique", "mechanic", "special", "hook")):
+        return list(_DEFAULT_OPTIONS_BY_HINT["twist"])
+    if any(k in blob for k in ("difficult", "pace", "hard", "level")):
+        return list(_DEFAULT_OPTIONS_BY_HINT["difficulty"])
+    if any(k in blob for k in ("win", "goal", "victory", "objective")):
+        return list(_DEFAULT_OPTIONS_BY_HINT["win"])
+    if any(k in blob for k in ("art", "vibe", "style", "look", "visual")):
+        return list(_DEFAULT_OPTIONS_BY_HINT["art"])
+    return list(_DEFAULT_OPTIONS_BY_HINT["generic"])
+
+
+def ensure_question_options(qid: str, text: str, options: list[str]) -> list[str]:
+    """Guarantee 2–4 clickable choices for the Studio UI."""
+    cleaned = [str(o).strip() for o in options if str(o).strip()]
+    # de-dupe preserving order
+    seen: set[str] = set()
+    unique: list[str] = []
+    for o in cleaned:
+        key = o.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(o)
+    if len(unique) >= 2:
+        return unique[:4]
+    for o in _default_options_for(qid, text):
+        key = o.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(o)
+        if len(unique) >= 3:
+            break
+    return unique[:4]
 
 _FALLBACK_BY_HINT: dict[str, list[dict[str, Any]]] = {
     "shooter": [
@@ -108,36 +162,42 @@ def fallback_questions(prompt: str) -> list[ClarifyQuestion]:
     return [ClarifyQuestion.model_validate(q) for q in raw]
 
 
-def _extract_json_object(text: str) -> dict[str, Any] | None:
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    try:
-        data = json.loads(text)
-        return data if isinstance(data, dict) else None
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
-        if not match:
-            return None
-        try:
-            data = json.loads(match.group(0))
-            return data if isinstance(data, dict) else None
-        except json.JSONDecodeError:
-            return None
+def _slug(text: str, fallback: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", (text or "").lower()).strip("_")
+    return (slug[:40] or fallback)
 
 
 def parse_clarify_response(raw: str) -> list[ClarifyQuestion]:
-    data = _extract_json_object(raw)
-    if not data or "questions" not in data:
-        raise ValueError("clarify response missing questions")
-    items = data["questions"]
-    if not isinstance(items, list):
-        raise ValueError("questions must be a list")
-    questions = [ClarifyQuestion.model_validate(q) for q in items]
-    if not 3 <= len(questions) <= 5:
-        raise ValueError(f"expected 3–5 questions, got {len(questions)}")
-    return questions
+    data = extract_json_object(raw)
+    if not data:
+        raise ValueError("clarify response was not JSON")
+    items = data.get("questions")
+    if items is None and isinstance(data.get("Questions"), list):
+        items = data["Questions"]
+    if not isinstance(items, list) or not items:
+        raise ValueError("clarify response missing questions list")
+
+    questions: list[ClarifyQuestion] = []
+    for i, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        qid = str(item.get("id") or item.get("key") or "").strip()
+        text = str(item.get("text") or item.get("question") or "").strip()
+        if not text:
+            continue
+        if not qid:
+            qid = _slug(text, f"q{i+1}")
+        options = item.get("options") or item.get("choices") or []
+        if not isinstance(options, list):
+            options = []
+        options = ensure_question_options(
+            qid, text, [str(o) for o in options]
+        )
+        questions.append(ClarifyQuestion(id=qid, text=text, options=options))
+
+    if not 2 <= len(questions) <= 6:
+        raise ValueError(f"expected 2–6 questions, got {len(questions)}")
+    return questions[:5]
 
 
 def ask_clarify_questions(
@@ -146,14 +206,18 @@ def ask_clarify_questions(
     client: LLMClient | None = None,
 ) -> tuple[list[ClarifyQuestion], str]:
     """
-    Return (questions, source) where source is 'llm' or 'fallback'.
-    Always yields 3–5 validated questions.
+    Return (questions, source).
+    source is 'llm' or 'fallback:<reason>' when the model output cannot be used.
     """
     llm = client or get_llm_client()
-    user = f"Player prompt:\n{prompt.strip()}\n\nAsk uniqueness questions now."
+    user = f"Player prompt:\n{prompt.strip()}\n\nAsk uniqueness questions now. JSON only."
     try:
-        raw = llm.complete(CLARIFY_SYSTEM, user)
+        raw = llm.complete(CLARIFY_SYSTEM, user, json_mode=True)
+        if not (raw or "").strip():
+            raise ValueError("empty LLM response")
         questions = parse_clarify_response(raw)
         return questions, "llm"
-    except Exception:
-        return fallback_questions(prompt), "fallback"
+    except Exception as exc:  # noqa: BLE001
+        reason = type(exc).__name__
+        msg = str(exc).strip().replace(" ", "_")[:48]
+        return fallback_questions(prompt), f"fallback:{reason}:{msg}"

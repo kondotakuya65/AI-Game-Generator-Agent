@@ -22,17 +22,17 @@ def _trace(
 
 
 def clarify_node(state: GameBuilderState) -> dict[str, Any]:
+    from langgraph.types import interrupt
+
+    from app.agent.resume import parse_clarify_resume
+
     prompt = state.get("prompt") or ""
+    existing = dict(state.get("answers") or {})
     questions, source = ask_clarify_questions(prompt)
     payload = [q.model_dump() for q in questions]
-    return {
-        "status": "clarifying",
-        "clarify_round": int(state.get("clarify_round") or 0) + 1,
-        "questions": payload,
-        "messages": [
-            f"clarify: asked {len(payload)} question(s) via {source} for {prompt[:48]!r}"
-        ],
-        "trace": _trace(
+
+    base_trace = (
+        _trace(
             "clarify",
             "Ask 3–5 uniqueness questions before locking GameSpec.",
             kind="thought",
@@ -49,6 +49,52 @@ def clarify_node(state: GameBuilderState) -> dict[str, Any]:
             f"{len(payload)} questions ready ({source}).",
             kind="observation",
             data={"ids": [q["id"] for q in payload]},
+        )
+    )
+
+    if existing:
+        return {
+            "status": "clarifying",
+            "clarify_round": int(state.get("clarify_round") or 0) + 1,
+            "questions": payload,
+            "answers": existing,
+            "messages": [
+                f"clarify: asked {len(payload)} via {source}; answers pre-filled (no pause)"
+            ],
+            "trace": base_trace
+            + _trace(
+                "clarify",
+                "Answers already present — skip human pause.",
+                kind="observation",
+                data={"answer_keys": list(existing.keys())},
+            ),
+        }
+
+    resume_raw = interrupt(
+        {
+            "type": "clarify",
+            "prompt": "Answer uniqueness questions, then confirm to lock GameSpec.",
+            "actions": ["confirm"],
+            "questions": payload,
+            "game_prompt": prompt,
+        }
+    )
+    resume = parse_clarify_resume(resume_raw)
+    answers = resume.answers
+    return {
+        "status": "clarifying",
+        "clarify_round": int(state.get("clarify_round") or 0) + 1,
+        "questions": payload,
+        "answers": answers,
+        "messages": [
+            f"clarify: asked {len(payload)} via {source}; locked answers for {len(answers)} keys"
+        ],
+        "trace": base_trace
+        + _trace(
+            "clarify",
+            f"Human confirmed {len(answers)} answer(s).",
+            kind="observation",
+            data={"answer_keys": list(answers.keys())},
         ),
     }
 

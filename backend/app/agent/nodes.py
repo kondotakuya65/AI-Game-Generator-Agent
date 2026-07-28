@@ -186,15 +186,45 @@ def design_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def code_node(state: GameBuilderState) -> dict[str, Any]:
+    from app.agent.code import code_from_gamespec
+
     run_id = state.get("run_id") or "local"
-    artifact_dir = f"artifacts/{run_id}/game"
+    gamespec = state.get("gamespec")
+    if not gamespec:
+        return {
+            "status": "failed",
+            "error": "code requires locked gamespec",
+            "messages": ["code: missing gamespec"],
+            "trace": _trace(
+                "code",
+                "Cannot code without GameSpec.",
+                kind="observation",
+            ),
+        }
+
+    root, filenames, source = code_from_gamespec(gamespec, run_id)
+    artifact_dir = str(root)
     return {
         "status": "coding",
         "artifact_dir": artifact_dir,
-        "messages": [f"code: stub artifact at {artifact_dir}"],
-        "trace": _trace("code", "Stub: write HTML/Canvas/JS files.", kind="thought")
-        + _trace("code", "write_game_files", kind="action", data={"dir": artifact_dir})
-        + _trace("code", "Stub files marked ready (no disk write yet).", kind="observation"),
+        "messages": [f"code: wrote {len(filenames)} files via {source}"],
+        "trace": _trace(
+            "code",
+            "Render genre template and write HTML/Canvas/JS files.",
+            kind="thought",
+            data={"source": source, "genre": gamespec.get("genre")},
+        )
+        + _trace(
+            "code",
+            "write_game_files",
+            kind="action",
+            data={"dir": artifact_dir, "files": filenames},
+        )
+        + _trace(
+            "code",
+            f"Wrote {', '.join(filenames)} under {artifact_dir}.",
+            kind="observation",
+        ),
     }
 
 

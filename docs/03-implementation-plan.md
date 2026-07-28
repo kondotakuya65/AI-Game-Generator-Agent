@@ -70,7 +70,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ## Phase E — Studio + quality
 
 ### E1 — SSE + studio UI
-- [ ] Stream thought / action / observation  
+- [x] Stream thought / action / observation *(commit 1)*  
 - [ ] Prompt, clarify panel, live trace, play embed  
 
 **Accept:** mock end-to-end demo visible in UI.

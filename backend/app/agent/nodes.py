@@ -135,27 +135,52 @@ def lock_spec_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def design_node(state: GameBuilderState) -> dict[str, Any]:
-    acceptance = [
-        {"id": "boots", "description": "game boots", "passed": None},
-        {"id": "move", "description": "player can move", "passed": None},
-        {"id": "score", "description": "score updates", "passed": None},
-    ]
-    design = {
-        "mechanics": "Stub mechanics plan from GameSpec.",
-        "asset_plan": "Canvas shapes only.",
-        "acceptance_tests": acceptance,
-    }
+    from app.agent.design import design_from_gamespec
+
+    run_id = state.get("run_id") or "local"
+    gamespec = state.get("gamespec")
+    if not gamespec:
+        return {
+            "status": "failed",
+            "error": "design requires locked gamespec",
+            "messages": ["design: missing gamespec"],
+            "trace": _trace(
+                "design",
+                "Cannot design without GameSpec.",
+                kind="observation",
+            ),
+        }
+
+    plan, paths, source = design_from_gamespec(gamespec, run_id)
+    design = plan.model_dump(mode="json")
+    acceptance = [it.model_dump(mode="json") for it in plan.acceptance_tests]
     return {
         "status": "designing",
         "design": design,
         "acceptance_tests": acceptance,
-        "messages": ["design: stub plan + acceptance seeds"],
-        "trace": _trace("design", "Stub: produce mechanics + acceptance.", kind="thought")
-        + _trace("design", "write_design_plan", kind="action")
+        "messages": [
+            f"design: wrote plan via {source}; {len(acceptance)} acceptance items"
+        ],
+        "trace": _trace(
+            "design",
+            "Produce mechanics, assets, and acceptance checklist from GameSpec.",
+            kind="thought",
+            data={"source": source},
+        )
         + _trace(
             "design",
-            f"Acceptance items: {len(acceptance)}.",
+            "write_design_plan",
+            kind="action",
+            data=paths,
+        )
+        + _trace(
+            "design",
+            f"Design ready ({source}): {len(acceptance)} acceptance items.",
             kind="observation",
+            data={
+                "acceptance_ids": [it["id"] for it in acceptance],
+                "asset_plan_len": len(plan.asset_plan),
+            },
         ),
     }
 

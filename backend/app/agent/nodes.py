@@ -1,9 +1,10 @@
-"""Game builder graph nodes — stubs for skeleton walk (real logic in later PRs)."""
+"""Game builder graph nodes — clarify is live; later nodes still stubbed."""
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
+from app.agent.clarify import ask_clarify_questions
 from app.agent.state import GameBuilderState, TraceEvent
 
 
@@ -22,34 +23,32 @@ def _trace(
 
 def clarify_node(state: GameBuilderState) -> dict[str, Any]:
     prompt = state.get("prompt") or ""
-    questions = [
-        {
-            "id": "twist",
-            "text": "What unique twist should set this game apart?",
-            "options": ["near-miss shields", "gravity wells", "sideways only"],
-        }
-    ]
+    questions, source = ask_clarify_questions(prompt)
+    payload = [q.model_dump() for q in questions]
     return {
         "status": "clarifying",
         "clarify_round": int(state.get("clarify_round") or 0) + 1,
-        "questions": questions,
-        "messages": [f"clarify: asked {len(questions)} question(s) for {prompt[:48]!r}"],
+        "questions": payload,
+        "messages": [
+            f"clarify: asked {len(payload)} question(s) via {source} for {prompt[:48]!r}"
+        ],
         "trace": _trace(
             "clarify",
-            "Stub: ask uniqueness questions before locking GameSpec.",
+            "Ask 3–5 uniqueness questions before locking GameSpec.",
             kind="thought",
-            data={"question_count": len(questions)},
+            data={"question_count": len(payload), "source": source},
         )
         + _trace(
             "clarify",
             "emit_clarify_questions",
             kind="action",
-            data={"questions": questions},
+            data={"questions": payload, "source": source},
         )
         + _trace(
             "clarify",
-            "Stub questions ready (answers may already be pre-filled).",
+            f"{len(payload)} questions ready ({source}).",
             kind="observation",
+            data={"ids": [q["id"] for q in payload]},
         ),
     }
 

@@ -29,7 +29,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ## Phase B — Clarify → lock
 
 ### B1 — Clarifier
-- [ ] 3–5 uniqueness questions from prompt  
+- [x] 3–5 uniqueness questions from prompt *(commit 1)*  
 - [ ] Lock `artifacts/{run_id}/gamespec.json`  
 - [ ] API + UI turn for answers / confirm  
 

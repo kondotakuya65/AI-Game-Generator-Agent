@@ -229,20 +229,41 @@ def code_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def test_node(state: GameBuilderState) -> dict[str, Any]:
-    """Stub always passes so the happy path reaches deploy without repair."""
-    report = {
-        "passed": True,
-        "items": [{"id": "boots", "description": "game boots", "passed": True}],
-        "summary": "Stub tests passed.",
-    }
+    from app.agent.test_game import test_game_artifact
+
+    run_id = state.get("run_id") or "local"
+    artifact_dir = state.get("artifact_dir")
+    acceptance = list(state.get("acceptance_tests") or [])
+    if state.get("design") and isinstance(state["design"], dict):
+        design_items = state["design"].get("acceptance_tests") or []
+        if design_items and not acceptance:
+            acceptance = list(design_items)
+
+    report, report_path = test_game_artifact(run_id, artifact_dir, acceptance)
+    payload = report.model_dump(mode="json")
     return {
         "status": "testing",
-        "test_report": report,
-        "test_passed": True,
-        "messages": ["test: stub pass"],
-        "trace": _trace("test", "Stub: run acceptance checks.", kind="thought")
-        + _trace("test", "run_acceptance", kind="action")
-        + _trace("test", "All stub checks passed.", kind="observation", data=report),
+        "test_report": payload,
+        "test_passed": report.passed,
+        "messages": [f"test: {report.summary}"],
+        "trace": _trace(
+            "test",
+            "Run static acceptance checks on generated game files.",
+            kind="thought",
+            data={"items": len(report.items)},
+        )
+        + _trace(
+            "test",
+            "run_acceptance",
+            kind="action",
+            data={"report_path": str(report_path)},
+        )
+        + _trace(
+            "test",
+            report.summary,
+            kind="observation",
+            data={"passed": report.passed, "report_path": str(report_path)},
+        ),
     }
 
 

@@ -56,7 +56,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 ## Phase D — Test → repair → deploy
 
 ### D1 — Tester + repair
-- [ ] Run acceptance checks on artifact  
+- [x] Run acceptance checks on artifact *(commit 1)*  
 - [ ] Repair loop with budget `N` + stop report  
 
 **Accept:** failing fixture → repair → pass **or** clear failure report.

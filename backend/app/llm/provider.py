@@ -56,6 +56,20 @@ class MockLLMClient:
                 }
             )
 
+        # Designer before GameSpec lock — design prompts also mention GameSpec.
+        if (
+            "mechanics:" in sys_l
+            or "mechanics plan" in sys_l
+            or "game designer" in sys_l
+            or "assets:" in sys_l
+        ):
+            return (
+                "MECHANICS: Arrow keys move; space fires upward bolts; "
+                "near-misses recharge shields; waves escalate drone count.\n"
+                "ASSETS: Rect ship, triangle drones, circle bolts — canvas only.\n"
+                "ACCEPTANCE: boots; move; shoot; enemy; score; win/lose."
+            )
+
         if "gamespec" in sys_l or ("lock" in sys_l and "spec" in sys_l):
             return json.dumps(
                 {
@@ -85,14 +99,6 @@ class MockLLMClient:
                         "win or lose reachable",
                     ],
                 }
-            )
-
-        if "design" in sys_l or "mechanics plan" in sys_l:
-            return (
-                "MECHANICS: Arrow keys move; space fires upward bolts; "
-                "near-misses recharge shields; waves escalate drone count.\n"
-                "ASSETS: Rect ship, triangle drones, circle bolts — canvas only.\n"
-                "ACCEPTANCE: boots; move; shoot; enemy; score; win/lose."
             )
 
         if "repair" in sys_l or "patch" in sys_l:

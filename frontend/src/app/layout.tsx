@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "AI-Game-Generator-Agent",
   description:
     "LangGraph game studio — clarify, lock GameSpec, then design → code → test → deploy.",
+  icons: {
+    icon: [{ url: "/fav.png", type: "image/png" }],
+    apple: [{ url: "/fav.png" }],
+  },
 };
 
 export default function RootLayout({

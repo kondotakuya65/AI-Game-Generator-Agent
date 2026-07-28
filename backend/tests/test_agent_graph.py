@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agent.graph import compile_game_builder_graph
+import pytest
+
+from app.agent.graph import clear_graph_cache, compile_game_builder_graph
 from app.agent.nodes import route_after_test
 from app.agent.resume import resume_with_answers
 from app.agent.state import NODE_ORDER, GameBuilderState, initial_state
+from app.config import clear_settings_cache
 
 FIXTURE_ANSWERS = {
     "twist": "near-miss recharges shields",
@@ -15,6 +18,19 @@ FIXTURE_ANSWERS = {
     "win": "clear 5 waves",
     "art": "minimal geometric",
 }
+
+
+@pytest.fixture(autouse=True)
+def _force_mock_llm(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("CODE_MODE", "mock")
+    monkeypatch.setenv("ARTIFACTS_DIR", str(tmp_path / "artifacts"))
+    clear_settings_cache()
+    clear_graph_cache()
+    yield
+    clear_settings_cache()
+    clear_graph_cache()
+
 
 
 def test_stub_happy_path_invoke():

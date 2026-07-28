@@ -11,13 +11,13 @@ from app.config import Settings, get_settings
 
 
 class LLMClient(Protocol):
-    def complete(self, system: str, user: str) -> str: ...
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str: ...
 
 
 class MockLLMClient:
     """Deterministic replies for tests / offline demos."""
 
-    def complete(self, system: str, user: str) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
         sys_l = system.lower()
         lower = user.lower()
 
@@ -25,12 +25,13 @@ class MockLLMClient:
         if "uniqueness questions" in sys_l or (
             "clarif" in sys_l and "question" in sys_l
         ):
+            # Distinct copy from clarify.fallback_questions so Ollama fallback is obvious.
             return json.dumps(
                 {
                     "questions": [
                         {
                             "id": "twist",
-                            "text": "What unique twist should set this shooter apart?",
+                            "text": "What twist makes this game feel uniquely yours?",
                             "options": [
                                 "near-miss recharges shields",
                                 "gravity wells pull shots",
@@ -39,17 +40,17 @@ class MockLLMClient:
                         },
                         {
                             "id": "difficulty",
-                            "text": "Target difficulty?",
+                            "text": "How hard should the first minute feel?",
                             "options": ["casual", "standard", "hard"],
                         },
                         {
                             "id": "win",
-                            "text": "How does the player win?",
+                            "text": "What counts as winning?",
                             "options": ["survive 60s", "clear 5 waves", "defeat boss"],
                         },
                         {
                             "id": "art",
-                            "text": "Art vibe?",
+                            "text": "Which art vibe fits best?",
                             "options": ["neon vectors", "minimal geometric", "retro pixel"],
                         },
                     ]
@@ -125,16 +126,18 @@ class OllamaClient:
         self.model = model
         self.timeout = timeout
 
-    def complete(self, system: str, user: str) -> str:
-        payload = {
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+        payload: dict = {
             "model": self.model,
             "stream": False,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "options": {"num_predict": 1024},
+            "options": {"num_predict": 1536 if json_mode else 1024, "temperature": 0.2},
         }
+        if json_mode:
+            payload["format"] = "json"
         with httpx.Client(timeout=self.timeout) as client:
             response = client.post(f"{self.base_url}/api/chat", json=payload)
             response.raise_for_status()
@@ -148,12 +151,12 @@ class OpenAIClient:
         self.model = model
         self.timeout = timeout
 
-    def complete(self, system: str, user: str) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        payload = {
+        payload: dict = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system},
@@ -161,6 +164,8 @@ class OpenAIClient:
             ],
             "max_tokens": 1200,
         }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
         with httpx.Client(timeout=self.timeout) as client:
             response = client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -178,16 +183,19 @@ class AnthropicClient:
         self.model = model
         self.timeout = timeout
 
-    def complete(self, system: str, user: str) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
         headers = {
             "x-api-key": self.api_key,
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+        sys = system
+        if json_mode and "json" not in system.lower():
+            sys = system + "\nRespond with JSON only."
         payload = {
             "model": self.model,
             "max_tokens": 1200,
-            "system": system,
+            "system": sys,
             "messages": [{"role": "user", "content": user}],
         }
         with httpx.Client(timeout=self.timeout) as client:

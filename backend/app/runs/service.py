@@ -225,3 +225,182 @@ def list_runs(limit: int = 20) -> list[dict[str, Any]]:
         }
         for r in items
     ]
+
+
+def _sse_events_from_stream(run_id: str, chunks):
+    """Yield public event dicts from LangGraph updates stream."""
+    for chunk in chunks:
+        mode = "updates"
+        data = chunk
+        if isinstance(chunk, tuple) and len(chunk) == 2:
+            mode, data = chunk
+
+        if mode == "custom" and isinstance(data, dict):
+            yield {
+                "type": "progress",
+                "run_id": run_id,
+                "message": data.get("message") or data.get("phase") or "working…",
+                "node": data.get("node"),
+                "phase": data.get("phase"),
+                "data": data.get("data"),
+            }
+            continue
+
+        if not isinstance(data, dict):
+            continue
+        if "__interrupt__" in data:
+            raw = data["__interrupt__"]
+            items = raw if isinstance(raw, (list, tuple)) else [raw]
+            value = None
+            if items:
+                first = items[0]
+                value = getattr(first, "value", first)
+            interrupt = value if isinstance(value, dict) else {"value": value}
+            yield {
+                "type": "interrupt",
+                "run_id": run_id,
+                "interrupt": interrupt,
+            }
+            continue
+        for node_name, update in data.items():
+            if not isinstance(update, dict):
+                continue
+            yield {"type": "node", "run_id": run_id, "node": node_name}
+            for te in update.get("trace") or []:
+                yield {
+                    "type": "trace",
+                    "run_id": run_id,
+                    "kind": te.get("kind"),
+                    "node": te.get("node") or node_name,
+                    "message": te.get("message"),
+                    "data": te.get("data"),
+                }
+
+
+def iter_create_run_events(prompt: str):
+    """Create a run while yielding SSE-ready event dicts (pause at clarify)."""
+    prompt = (prompt or "").strip()
+    if len(prompt) < 3:
+        raise HTTPException(status_code=400, detail="prompt must be at least 3 characters")
+
+    run_id = str(uuid.uuid4())
+    now = _now()
+    settings = get_settings()
+    record = RunRecord(
+        run_id=run_id,
+        prompt=prompt,
+        status="awaiting_clarify",
+        created_at=now,
+        updated_at=now,
+    )
+    with _lock:
+        _runs[run_id] = record
+
+    yield {"type": "status", "run_id": run_id, "status": "running", "prompt": prompt}
+
+    graph = get_compiled_graph()
+    saw_interrupt = False
+    try:
+        chunks = graph.stream(
+            initial_state(
+                prompt,
+                run_id=run_id,
+                repair_budget=settings.repair_budget,
+            ),
+            config=_config(run_id),
+            stream_mode=["updates", "custom"],
+        )
+        for event in _sse_events_from_stream(run_id, chunks):
+            if event.get("type") == "interrupt":
+                saw_interrupt = True
+            yield event
+    except Exception as exc:  # noqa: BLE001
+        record.status = "failed"
+        record.error = str(exc)
+        record.updated_at = _now()
+        yield {"type": "error", "run_id": run_id, "error": str(exc)}
+        return
+
+    record.updated_at = _now()
+    snap = _snapshot(record)
+    if saw_interrupt or snap.get("interrupt"):
+        record.status = "awaiting_clarify"
+    else:
+        record.status = "completed"
+        record.summary = snap.get("summary")
+    snap = _snapshot(record)
+    yield {"type": "done", **snap}
+
+
+def iter_confirm_run_events(run_id: str, answers: dict[str, str]):
+    """Confirm clarify answers and stream the autonomous pipeline."""
+    with _lock:
+        record = _runs.get(run_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="run not found")
+
+    current = _snapshot(record)
+    if current["status"] == "completed":
+        raise HTTPException(status_code=409, detail="run already completed")
+    if current["status"] == "failed":
+        raise HTTPException(status_code=409, detail="run failed; start a new run")
+    if not current.get("interrupt"):
+        raise HTTPException(status_code=409, detail="run is not awaiting clarify answers")
+
+    cleaned = {str(k): str(v).strip() for k, v in answers.items() if str(v).strip()}
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="answers must not be empty")
+
+    yield {"type": "status", "run_id": run_id, "status": "running"}
+
+    graph = get_compiled_graph()
+    try:
+        chunks = graph.stream(
+            resume_with_answers(cleaned),
+            config=_config(run_id),
+            stream_mode=["updates", "custom"],
+        )
+        for event in _sse_events_from_stream(run_id, chunks):
+            yield event
+    except Exception as exc:  # noqa: BLE001
+        record.status = "failed"
+        record.error = str(exc)
+        record.updated_at = _now()
+        yield {"type": "error", "run_id": run_id, "error": str(exc)}
+        return
+
+    record.updated_at = _now()
+    record.status = "completed"
+    snap = _snapshot(record)
+    record.summary = snap.get("summary")
+    snap = _snapshot(record)
+    yield {"type": "done", **snap}
+
+
+def iter_replay_run_events(run_id: str):
+    """Replay stored traces for an existing run (UI reconnect)."""
+    with _lock:
+        record = _runs.get(run_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="run not found")
+
+    snap = _snapshot(record)
+    yield {"type": "status", "run_id": run_id, "status": snap["status"], "replay": True}
+    for te in (snap.get("state") or {}).get("trace") or []:
+        yield {
+            "type": "trace",
+            "run_id": run_id,
+            "kind": te.get("kind"),
+            "node": te.get("node"),
+            "message": te.get("message"),
+            "data": te.get("data"),
+            "replay": True,
+        }
+    if snap.get("interrupt"):
+        yield {
+            "type": "interrupt",
+            "run_id": run_id,
+            "interrupt": snap["interrupt"],
+            "replay": True,
+        }
+    yield {"type": "done", **snap, "replay": True}

@@ -153,13 +153,17 @@ def design_node(state: GameBuilderState) -> dict[str, Any]:
 
     plan, paths, source = design_from_gamespec(gamespec, run_id)
     design = plan.model_dump(mode="json")
+    acceptance = [it.model_dump(mode="json") for it in plan.acceptance_tests]
     return {
         "status": "designing",
         "design": design,
-        "messages": [f"design: wrote plan via {source}"],
+        "acceptance_tests": acceptance,
+        "messages": [
+            f"design: wrote plan via {source}; {len(acceptance)} acceptance items"
+        ],
         "trace": _trace(
             "design",
-            "Produce mechanics + asset plan from GameSpec.",
+            "Produce mechanics, assets, and acceptance checklist from GameSpec.",
             kind="thought",
             data={"source": source},
         )
@@ -171,9 +175,12 @@ def design_node(state: GameBuilderState) -> dict[str, Any]:
         )
         + _trace(
             "design",
-            f"Design ready ({source}): mechanics {len(plan.mechanics)} chars.",
+            f"Design ready ({source}): {len(acceptance)} acceptance items.",
             kind="observation",
-            data={"asset_plan_len": len(plan.asset_plan)},
+            data={
+                "acceptance_ids": [it["id"] for it in acceptance],
+                "asset_plan_len": len(plan.asset_plan),
+            },
         ),
     }
 

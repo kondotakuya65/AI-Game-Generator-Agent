@@ -10,6 +10,7 @@ from typing import Any
 from app.config import Settings, get_settings
 from app.llm.provider import LLMClient, get_llm_client
 from app.models import DesignPlan, GameSpec
+from app.agent.acceptance import build_acceptance_checklist
 
 DESIGN_SYSTEM = """You are a game designer for HTML5 Canvas games.
 Given a locked GameSpec JSON, write a short design plan.
@@ -56,7 +57,11 @@ def fallback_design(spec: GameSpec) -> DesignPlan:
         f"Art vibe: {spec.visual.art_vibe}. Palette: {palette}. "
         "Draw with canvas shapes only — no image assets."
     )
-    return DesignPlan(mechanics=mechanics, asset_plan=assets, acceptance_tests=[])
+    return DesignPlan(
+        mechanics=mechanics,
+        asset_plan=assets,
+        acceptance_tests=build_acceptance_checklist(spec),
+    )
 
 
 def build_design_plan(
@@ -65,6 +70,7 @@ def build_design_plan(
     client: LLMClient | None = None,
 ) -> tuple[DesignPlan, str]:
     llm = client or get_llm_client()
+    checklist = build_acceptance_checklist(spec)
     user = (
         "Locked GameSpec:\n"
         f"{spec.model_dump_json(indent=2)}\n\n"
@@ -76,11 +82,16 @@ def build_design_plan(
         if len(mechanics) < 20:
             raise ValueError("mechanics too short")
         return (
-            DesignPlan(mechanics=mechanics, asset_plan=assets, acceptance_tests=[]),
+            DesignPlan(
+                mechanics=mechanics,
+                asset_plan=assets,
+                acceptance_tests=checklist,
+            ),
             "llm",
         )
     except Exception:
-        return fallback_design(spec), "fallback"
+        plan = fallback_design(spec)
+        return plan, "fallback"
 
 
 def design_dir(run_id: str, settings: Settings | None = None) -> Path:
@@ -93,22 +104,38 @@ def write_design_artifacts(
     plan: DesignPlan,
     settings: Settings | None = None,
 ) -> dict[str, str]:
-    """Write design.md + design.json; return relative path map."""
+    """Write design.md + design.json + acceptance.json; return path map."""
     root = design_dir(run_id, settings)
     root.mkdir(parents=True, exist_ok=True)
+    acceptance_lines = "\n".join(
+        f"- [{it.id}] {it.description}" for it in plan.acceptance_tests
+    )
     md = (
         f"# Design — {run_id}\n\n"
         f"## Mechanics\n\n{plan.mechanics}\n\n"
-        f"## Assets\n\n{plan.asset_plan}\n"
+        f"## Assets\n\n{plan.asset_plan}\n\n"
+        f"## Acceptance\n\n{acceptance_lines or '_none_'}\n"
     )
     md_path = root / "design.md"
     json_path = root / "design.json"
+    acceptance_path = root / "acceptance.json"
     md_path.write_text(md, encoding="utf-8")
     json_path.write_text(
         json.dumps(plan.model_dump(mode="json"), indent=2),
         encoding="utf-8",
     )
-    return {"design_md": str(md_path), "design_json": str(json_path)}
+    acceptance_path.write_text(
+        json.dumps(
+            [it.model_dump(mode="json") for it in plan.acceptance_tests],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "design_md": str(md_path),
+        "design_json": str(json_path),
+        "acceptance_json": str(acceptance_path),
+    }
 
 
 def design_from_gamespec(

@@ -62,7 +62,7 @@ Fine-grained checklist (one or few commits each). Merge feature PRs into `dev`; 
 **Accept:** failing fixture → repair → pass **or** clear failure report.
 
 ### D2 — Deployer
-- [ ] Serve `/play/{id}` + zip download  
+- [x] Serve `/play/{id}` + zip download *(commit 3)*  
 
 **Accept:** locked run → playable URL without further human input.
 

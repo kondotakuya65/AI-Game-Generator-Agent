@@ -32,7 +32,7 @@ def test_stub_happy_path_invoke():
     assert result["status"] == "completed"
     assert result["spec_locked"] is True
     assert result["test_passed"] is True
-    assert result["play_url"] == "/play/stub-1"
+    assert result["play_url"] == "/play/stub-1/"
     assert result["gamespec"]["genre"] == "shooter"
     assert "near-miss" in result["gamespec"]["twist"]
     assert result.get("error") is None
@@ -62,7 +62,7 @@ def test_clarify_interrupt_then_confirm_locks_spec():
     assert result["spec_locked"] is True
     assert result["gamespec"]["title"]
     assert result["status"] == "completed"
-    assert result["play_url"] == "/play/clarify-1"
+    assert result["play_url"] == "/play/clarify-1/"
 
 
 def test_route_after_test_branches():
@@ -149,7 +149,7 @@ def test_repair_loop_then_deploy(monkeypatch):
     assert result["status"] == "completed"
     assert result["test_passed"] is True
     assert result["repair_count"] == 1
-    assert result["play_url"] == "/play/repair-1"
+    assert result["play_url"] == "/play/repair-1/"
     thought_nodes = [t["node"] for t in result["trace"] if t.get("kind") == "thought"]
     assert "repair" in thought_nodes
     assert thought_nodes.count("test") >= 2

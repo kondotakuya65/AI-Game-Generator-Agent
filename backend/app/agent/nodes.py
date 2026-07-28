@@ -312,16 +312,46 @@ def repair_node(state: GameBuilderState) -> dict[str, Any]:
 
 
 def deploy_node(state: GameBuilderState) -> dict[str, Any]:
+    from app.agent.deploy import deploy_game
+
     run_id = state.get("run_id") or "local"
-    play_url = f"/play/{run_id}"
+    try:
+        result = deploy_game(run_id, state.get("artifact_dir"))
+    except FileNotFoundError as exc:
+        return {
+            "status": "failed",
+            "error": str(exc),
+            "messages": [f"deploy: failed — {exc}"],
+            "trace": _trace(
+                "deploy",
+                f"Deploy failed: {exc}",
+                kind="observation",
+            ),
+        }
+
+    play_url = result["play_url"]
     return {
         "status": "completed",
         "play_url": play_url,
-        "summary": f"Stub deploy ready at {play_url}",
+        "summary": f"Playable at {play_url} (zip: {result['download_url']})",
         "messages": [f"deploy: {play_url}"],
-        "trace": _trace("deploy", "Stub: serve static play URL.", kind="thought")
-        + _trace("deploy", "mount_play_url", kind="action", data={"play_url": play_url})
-        + _trace("deploy", f"Playable at {play_url}.", kind="observation"),
+        "trace": _trace(
+            "deploy",
+            "Serve static play URL and zip download.",
+            kind="thought",
+        )
+        + _trace(
+            "deploy",
+            "mount_play_url",
+            kind="action",
+            data=result,
+        )
+        + _trace(
+            "deploy",
+            f"Playable at {play_url}; download {result['download_url']}.",
+            kind="observation",
+            data={"zip_path": result["zip_path"]},
+        ),
     }
 
 
